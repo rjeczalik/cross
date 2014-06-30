@@ -6,7 +6,10 @@ A simple bash script for enhancing current `$GOROOT`/pkg with official packages 
 *Installation*
 
 ```bash
-~ $ wget -q https://raw.githubusercontent.com/rjeczalik/cross/master/gocross -O - | tee ~/bin/gocross | md5sum - | cut -d' ' -f1 | xargs -i test  "{}" = "9d79c278c11146653c4e832caf5df281" || rm -v ~/bin/gocross
+~/bin $ wget -q https://raw.githubusercontent.com/rjeczalik/cross/master/gocross -O - \
+| tee ~/bin/gocross | sha1sum - | cut -d' ' -f1 \
+| xargs -i test  "{}" = "5910b55cc3046485c58337965ba8224801eece47" || rm -v ~/bin/gocross \
+&& chmod +x ~/bin/gocross
 ```
 
 *Pic or it didn't happen*
