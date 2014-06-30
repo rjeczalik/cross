@@ -1,7 +1,7 @@
 cross
 =====
 
-A simple bash script for enhancing current `$GOROOT`/pkg with official packages for all major platforms. Using binary packages, compiled on the target os and architecture, does not have the same `CGO` restrictions as using crosscompiled packages.
+A simple bash script for enhancing current `$GOROOT`/pkg with official packages for all the major platforms. Using binary packages from golang.org/dl, which are compiled on a target os and architecture, does not have the same `CGO` restrictions as using crosscompiled packages.
 
 *Installation*
 
