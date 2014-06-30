@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+#
+# Script downloads all official go builds for current versions, and unpacks
+# their pkg/${GOOS}_${GOARCH} directories into ${GOROOT}/pkg/.
+#
+# Usage:
+#
+# ~ $ gocross
+# ~ $ gocross clean
+
+die() {
+	if [ ! -z "${*}" ]; then
+		echo "gocross: ${*}" 1>&2
+	fi
+	exit 1
+}
+
+die_usage() {
+	echo "usage: gocross [clean]" 1>&2
+	exit 1
+}
+
+if [ ${#} -gt 0 ] && [ \( ${#} -ne 1  \) -o \( ! "${1}" = "clean" \) ]; then
+	die_usage
+fi
+
+root=$(go env GOROOT 2>/dev/null)
+
+if [ -z "${root}" ]; then
+   die "cannot into env \$GOROOT"
+fi
+
+if ! stat "${root}/pkg" &>/dev/null; then
+	die "cannot into dir ${root}/pkg"
+fi
+
+version=$(go version | sed -r 's/.*go([0-9\.]+).*/\1/' 2>/dev/null)
+
+if [ -z "${version}" ]; then
+	die "cannot into go vesion"
+fi
+
+if [ $(echo $version | cut -d. -f2) -lt 3 ]; then
+	die "only go versions starting go1.3 are supported"
+fi
+
+cache="${HOME}/.cache/gocross"
+
+if ! stat "${cache}" &>/dev/null && ! mkdir "${cache}"; then
+	die "cannot into dir ${cache}"
+fi
+
+do_clean() {
+	rm -rf "${cache}"
+	arch=$(go env GOOS 2>/dev/null)_$(go env GOARCH 2>/dev/null)
+	if [ "${arch}" = "_" ]; then
+		die "cannot into: go env GOOS, go env GOARCH"
+	fi
+	pkgs=( $(/bin/ls "${root}/pkg" | tr ' ' '\n' | grep -vE 'obj|tool' | grep -vx "${arch}") )
+	for i in ${!pkgs[@]}; do
+		echo "# removing ${pkgs[i]}"
+		rm -rf "${root}/pkg/${pkgs[i]}"
+	done
+}
+
+do_install() {
+	declare -A urls
+
+	urls=(
+		[darwin_386]="http://golang.org/dl/go${version}.darwin-386-osx10.8.tar.gz"
+		[darwin_amd64]="http://golang.org/dl/go${version}.darwin-amd64-osx10.8.tar.gz"
+		[freebsd_386]="http://golang.org/dl/go${version}.freebsd-386.tar.gz"
+		[freebsd_amd64]="http://golang.org/dl/go${version}.freebsd-amd64.tar.gz"
+		[linux_386]="http://golang.org/dl/go${version}.linux-386.tar.gz"
+		[linux_amd64]="http://golang.org/dl/go${version}.linux-amd64.tar.gz"
+		[windows_386]="http://golang.org/dl/go${version}.windows-386.zip"
+		[windows_amd64]="http://golang.org/dl/go${version}.windows-amd64.zip"
+	)
+
+	pkgs=$(/bin/ls "${root}/pkg")
+	missing=()
+	not_cached=()
+
+	for k in ${!urls[@]}; do
+		if ! echo $pkgs | tr ' ' '\n' | grep -x ${k} &>/dev/null; then
+			missing+=(${k})
+			if ! stat "${cache}/$(basename ${urls[${k}]})" &>/dev/null; then
+				not_cached+=(${k})
+			fi
+		fi
+	done
+
+	for k in ${not_cached[@]}; do
+		url=${urls[${k}]}
+		echo "# ${url}	=>	${cache}/$(basename ${url})"
+		wget -q -P "${cache}" ${url}
+	done
+
+	for k in ${missing[@]}; do
+		archive=${cache}/$(basename ${urls[${k}]})
+		tmp=$(mktemp -d 2>/dev/null)
+		echo "# $(basename ${archive})	=>	${root}/pkg/${k}"
+		case "${urls[${k}]}" in
+			*.tar.gz)
+				if ! tar -xf "${archive}" -C "${tmp}" >/dev/null; then
+					rm -v "${archive}"
+					continue
+				fi
+				;;
+			*.zip)
+				if ! unzip "${archive}" -d "${tmp}" >/dev/null; then
+					rm -v "${archive}"
+					continue
+				fi
+				;;
+			*)
+				die "dunno wat to do with $(basename ${archive})"
+		esac
+		mv ${tmp}/go/pkg/${k} ${root}/pkg/
+	done
+}
+
+if [ "${1}" = "clean" ]; then
+	do_clean
+else
+	do_install
+fi
