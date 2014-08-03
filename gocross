@@ -8,6 +8,15 @@
 # ~ $ gocross
 # ~ $ gocross clean
 
+case "$(uname -a)" in
+	Darwin* | FreeBSD*)
+		sed=gsed
+		;;
+	*)
+		sed=sed
+		;;
+esac
+
 die() {
 	if [ ! -z "${*}" ]; then
 		echo "gocross: ${*}" 1>&2
@@ -34,7 +43,7 @@ if ! stat "${root}/pkg" &>/dev/null; then
 	die "cannot into dir ${root}/pkg"
 fi
 
-version=$(go version | sed -r 's/.*go([0-9\.]+).*/\1/' 2>/dev/null)
+version=$(go version | ${sed} -r 's/.*go([0-9\.]+).*/\1/' 2>/dev/null)
 
 if [ -z "${version}" ]; then
 	die "cannot into go vesion"
